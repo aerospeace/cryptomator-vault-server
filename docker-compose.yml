@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  cryptomator-vault-server:
+    image: cryptomator-vault-server
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - VAULTS_CONFIG=/config/vaults.yaml
+    volumes:
+      - /path/to/vaults.yaml:/config/vaults.yaml:ro
+      - /path/to/vaults:/data/vaults:ro
+    user: "1000:1000"  # Replace with desired UID:GID
