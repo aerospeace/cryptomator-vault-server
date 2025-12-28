@@ -60,13 +60,37 @@ flask run --host 0.0.0.0 --port 8000
 
 ## Running with Docker
 
+
 ```bash
 docker build -t cryptomator-vault-server .
 docker run --rm -p 8000:8000 \
   -e VAULTS_CONFIG=/config/vaults.yaml \
   -v /path/to/vaults.yaml:/config/vaults.yaml:ro \
   -v /path/to/vaults:/data/vaults:ro \
+  -u $(id -u):$(id -g) \
   cryptomator-vault-server
 ```
+
+### Running with Docker Compose
+
+You can run the server as a specific user by setting the `user` field in your `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+services:
+  cryptomator-vault-server:
+    image: cryptomator-vault-server
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - VAULTS_CONFIG=/config/vaults.yaml
+    volumes:
+      - /path/to/vaults.yaml:/config/vaults.yaml:ro
+      - /path/to/vaults:/data/vaults:ro
+    user: "1000:1000"  # Replace with desired UID:GID
+```
+
+This ensures the webserver runs as the specified user, improving security and compatibility with mounted volumes.
 
 Visit `http://localhost:8000` and log in with the vault ID and passphrase.
