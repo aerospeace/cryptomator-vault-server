@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cryptomator Vault Gateway</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+      body { font-family: sans-serif; margin: 0; padding: 0; }
+      header { background: #222; color: #fff; padding: 12px 24px; display: flex; justify-content: space-between; }
+      .container { padding: 24px; }
+      .flash { padding: 12px; margin-bottom: 16px; border-radius: 4px; }
+      .flash.error { background: #f8d7da; color: #721c24; }
+      .flash.success { background: #d4edda; color: #155724; }
+      .layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; }
+      aside { border-right: 1px solid #ddd; padding-right: 16px; }
+      ul { list-style: none; padding: 0; }
+      li { margin-bottom: 8px; }
+      .file { display: flex; justify-content: space-between; gap: 12px; }
+      .path { font-weight: 600; }
+      .status { margin-bottom: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>Cryptomator Vault Gateway</div>
+      {% if request.path != '/login' %}
+      <form action="{{ url_for('logout') }}" method="post">
+        <button type="submit">Logout</button>
+      </form>
+      {% endif %}
+    </header>
+    <div class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </body>
+</html>

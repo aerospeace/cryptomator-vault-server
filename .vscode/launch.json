@@ -1,0 +1,16 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Gunicorn: app.main:create_app",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "app.main",
+			// "args": ["--bind", "0.0.0.0:8000", "app.main:create_app"],
+            "envFile": "${workspaceFolder}/.env",
+			"console": "integratedTerminal",
+			"justMyCode": true,
+            "cwd": "${workspaceFolder}",
+		}
+	]
+}

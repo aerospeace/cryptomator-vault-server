@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="layout">
+  <aside>
+    <h3>Folders</h3>
+    {% if tree %}
+      <ul>
+        {% for node in tree.children %}
+          <li><a href="{{ url_for('browse_path') }}?path={{ node.path }}">{{ node.path }}</a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No cached index available.</p>
+    {% endif %}
+  </aside>
+  <main>
+    <div class="path">{{ current_path }}</div>
+    <section>
+      <form
+        hx-post="{{ url_for('hx_upload') }}?path={{ current_path }}"
+        hx-target="#upload-result"
+        hx-swap="innerHTML"
+        enctype="multipart/form-data"
+      >
+        <input type="file" name="file" required />
+        <button type="submit">Upload</button>
+      </form>
+      <div id="upload-result"></div>
+    </section>
+    <section
+      id="file-list"
+      hx-get="{{ url_for('hx_list') }}?path={{ current_path }}"
+      hx-trigger="load"
+    ></section>
+  </main>
+</div>
+{% endblock %}

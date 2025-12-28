@@ -1,0 +1,5 @@
+Flask==3.0.3
+PyYAML==6.0.2
+gunicorn==22.0.0
+pycryptomator==1.15.0
+python-dotenv==1.2.1
