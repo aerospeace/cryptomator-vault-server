@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import BinaryIO, Iterator
 import importlib.util
 import importlib
+from io import BytesIO
 
 from app.process import start_background_process
 
@@ -64,7 +65,9 @@ class VaultAdapter(abc.ABC):
         target = root / relative_path.lstrip("/")
         if not target.is_file():
             raise VaultAdapterError(f"File not found: {relative_path}")
-        return target.open("rb")
+        with open(target, "rb") as f:
+            file_data = BytesIO(f.read())
+        return file_data
 
     def write_file(self, root: Path, relative_path: str, stream: BinaryIO) -> None:
         target = root / relative_path.lstrip("/")
