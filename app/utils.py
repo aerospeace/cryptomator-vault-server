@@ -1,5 +1,4 @@
 from pathlib import PurePosixPath
-
 from app.adapters import DirEntry
 
 

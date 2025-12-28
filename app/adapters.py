@@ -9,6 +9,7 @@ from typing import BinaryIO, Iterator
 import importlib.util
 import importlib
 
+from app.process import start_background_process
 
 @dataclass(frozen=True)
 class DirEntry:
@@ -80,11 +81,12 @@ class PyVaultAdapter(VaultAdapter):
 
 
 class CLIVaultAdapter(VaultAdapter):
-    def __init__(self, vault_path: Path, cli_path: str, mount_root: Path, mounter: str) -> None:
+    def __init__(self, vault_path: Path, cli_path: str, mount_root: Path, mounter: str, umount_cli_path: str) -> None:
         super().__init__(vault_path)
         self.cli_path = cli_path
         self.mount_root = mount_root
         self.mounter = mounter
+        self.umount_cli_path = umount_cli_path
         
     @contextmanager
     def open(self, passphrase: str) -> Iterator[Path]:
@@ -98,25 +100,25 @@ class CLIVaultAdapter(VaultAdapter):
 
     def _mount(self, passphrase: str, mount_dir: Path) -> None:
         os.environ["CRYPTOMATOR_PASSWORD"] = passphrase
-        result = subprocess.run(
-            [
-                self.cli_path,
-                "unlock",
-                "--mountPoint", str(mount_dir),
-                "--password:env", "CRYPTOMATOR_PASSWORD",
-                "--mounter", self.mounter,
-                str(self.vault_path),
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            raise VaultAdapterError(result.stderr.strip() or "Failed to unlock vault")
+        cmd = [self.cli_path, "unlock",
+               "--mountPoint", str(mount_dir),
+               "--password:env", "CRYPTOMATOR_PASSWORD",
+               "--mounter", self.mounter,
+               str(self.vault_path)]
+        result = start_background_process(cmd)        
+        return result
+        # result = subprocess.run(
+        #     cmd,
+        #     check=False,
+        #     capture_output=True,
+        #     text=True,
+        # )
+        # if result.returncode != 0:
+        #     raise VaultAdapterError(result.stderr.strip() or "Failed to unlock vault")
 
     def _unmount(self, mount_dir: Path) -> None:
         subprocess.run(
-            [self.cli_path, "lock", "--mount-point", str(mount_dir)],
+            [self.umount_cli_path, str(mount_dir)],
             check=False,
             capture_output=True,
             text=True,

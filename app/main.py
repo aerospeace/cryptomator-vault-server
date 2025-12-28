@@ -29,6 +29,7 @@ def create_app() -> Flask:
                 cli_path=config.cryptomator_cli_path,
                 mount_root=config.vault_mount_root,
                 mounter=config.mounter,
+                umount_cli_path=config.umount_cli_path,
             )
         return PyVaultAdapter(Path(vault_path))
 
@@ -228,6 +229,7 @@ def get_adapter_for_session(session: Any) -> VaultAdapter:
             cli_path=config.cryptomator_cli_path,
             mount_root=config.vault_mount_root,
             mounter=config.mounter,
+            umount_cli_path=config.umount_cli_path,
         )
     return PyVaultAdapter(Path(session.data["vault_path"]))
 

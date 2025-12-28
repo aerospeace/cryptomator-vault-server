@@ -20,6 +20,7 @@ class AppConfig:
     index_cache_mode: str
     adapter: str
     cryptomator_cli_path: str
+    umount_cli_path: str
     vault_mount_root: Path
     vaults: dict[str, VaultConfig]
     mounter: str
@@ -50,7 +51,8 @@ def load_config() -> AppConfig:
         == "true",
         index_cache_mode=os.environ.get("INDEX_CACHE_MODE", "recursive"),
         adapter=os.environ.get("ADAPTER", "python"),
-        cryptomator_cli_path=os.environ.get("CRYPTOMATOR_CLI_PATH", "/usr/local/bin/cryptomator-cli"),
+        cryptomator_cli_path=os.environ.get("CRYPTOMATOR_CLI_PATH", "/usr/bin/cryptomator-cli"),
+        umount_cli_path=os.environ.get("UMOUNT_CLI_PATH", "/usr/bin/umount"), # not yet a windows equivalent tested
         vault_mount_root=Path(os.environ.get("VAULT_MOUNT_ROOT", "/tmp/mounts")),
         vaults=vaults,
         mounter=os.environ.get("MOUNTER", "org.cryptomator.frontend.fuse.mount.LinuxFuseMountProvider")
