@@ -14,6 +14,8 @@ from app.utils import build_tree, flatten_tree, normalize_path
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    if "SECRET_KEY" in os.environ:
+        app.secret_key = os.environ["SECRET_KEY"]
     config = load_config()
     app.config["MAX_CONTENT_LENGTH"] = config.max_upload_mb * 1024 * 1024
 
@@ -26,6 +28,7 @@ def create_app() -> Flask:
                 vault_path=Path(vault_path),
                 cli_path=config.cryptomator_cli_path,
                 mount_root=config.vault_mount_root,
+                mounter=config.mounter,
             )
         return PyVaultAdapter(Path(vault_path))
 
@@ -224,5 +227,10 @@ def get_adapter_for_session(session: Any) -> VaultAdapter:
             vault_path=Path(session.data["vault_path"]),
             cli_path=config.cryptomator_cli_path,
             mount_root=config.vault_mount_root,
+            mounter=config.mounter,
         )
     return PyVaultAdapter(Path(session.data["vault_path"]))
+
+if __name__ == "__main__":
+    flask_app = create_app()
+    flask_app.run(host="0.0.0.0", port=8000)

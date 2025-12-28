@@ -80,11 +80,12 @@ class PyVaultAdapter(VaultAdapter):
 
 
 class CLIVaultAdapter(VaultAdapter):
-    def __init__(self, vault_path: Path, cli_path: str, mount_root: Path) -> None:
+    def __init__(self, vault_path: Path, cli_path: str, mount_root: Path, mounter: str) -> None:
         super().__init__(vault_path)
         self.cli_path = cli_path
         self.mount_root = mount_root
-
+        self.mounter = mounter
+        
     @contextmanager
     def open(self, passphrase: str) -> Iterator[Path]:
         self.mount_root.mkdir(parents=True, exist_ok=True)
@@ -96,16 +97,15 @@ class CLIVaultAdapter(VaultAdapter):
             self._unmount(mount_dir)
 
     def _mount(self, passphrase: str, mount_dir: Path) -> None:
+        os.environ["CRYPTOMATOR_PASSWORD"] = passphrase
         result = subprocess.run(
             [
                 self.cli_path,
                 "unlock",
-                "--vault",
+                "--mountPoint", str(mount_dir),
+                "--password:env", "CRYPTOMATOR_PASSWORD",
+                "--mounter", self.mounter,
                 str(self.vault_path),
-                "--mount-point",
-                str(mount_dir),
-                "--password",
-                passphrase,
             ],
             check=False,
             capture_output=True,

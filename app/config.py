@@ -22,7 +22,7 @@ class AppConfig:
     cryptomator_cli_path: str
     vault_mount_root: Path
     vaults: dict[str, VaultConfig]
-
+    mounter: str
 
 def _load_vaults_config(path: Path) -> dict[str, VaultConfig]:
     if not path.exists():
@@ -53,4 +53,5 @@ def load_config() -> AppConfig:
         cryptomator_cli_path=os.environ.get("CRYPTOMATOR_CLI_PATH", "/usr/local/bin/cryptomator-cli"),
         vault_mount_root=Path(os.environ.get("VAULT_MOUNT_ROOT", "/tmp/mounts")),
         vaults=vaults,
+        mounter=os.environ.get("MOUNTER", "org.cryptomator.frontend.fuse.mount.LinuxFuseMountProvider")
     )
