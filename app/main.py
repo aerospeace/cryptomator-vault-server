@@ -66,8 +66,12 @@ def create_app() -> Flask:
 
         adapter = get_adapter(str(vault.path))
         try:
-            with adapter.open(passphrase) as root:
-                entries = adapter.list_dir(root, "/")
+            index = None
+            if config.enable_login_index_cache:
+                index = adapter.build_index(passphrase)
+            else:
+                with adapter.open(passphrase) as root:
+                    adapter.list_dir(root, "/")
         except VaultAdapterError as exc:
             flash(str(exc), "error")
             return redirect(url_for("login"))
@@ -82,7 +86,7 @@ def create_app() -> Flask:
             }
         )
         if config.enable_login_index_cache:
-            session.data["index"] = build_index(adapter, passphrase, entries)
+            session.data["index"] = index
 
         response = redirect(url_for("browse"))
         response.set_cookie(
@@ -193,18 +197,6 @@ def list_entries(session: Any, path: str) -> list[DirEntry]:
             return adapter.list_dir(root, path)
     except VaultAdapterError:
         return []
-
-
-def build_index(adapter: VaultAdapter, passphrase: str, root_entries: list[DirEntry]) -> dict[str, list[DirEntry]]:
-    index: dict[str, list[DirEntry]] = {"/": root_entries}
-    stack = [entry for entry in root_entries if entry.is_dir]
-    while stack:
-        entry = stack.pop()
-        with adapter.open(passphrase) as root:
-            children = adapter.list_dir(root, entry.path)
-        index[entry.path] = children
-        stack.extend(child for child in children if child.is_dir)
-    return index
 
 
 def build_tree_from_index(index: dict[str, list[DirEntry]]) -> dict:

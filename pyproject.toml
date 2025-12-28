@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cryptomator-vault-server"
+version = "0.1.0"
+description = "Flask web UI for browsing Cryptomator vaults"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "Flask==3.0.3",
+  "PyYAML==6.0.2",
+  "gunicorn==22.0.0",
+  "pycryptomator==1.15.0",
+  "python-dotenv==1.2.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
