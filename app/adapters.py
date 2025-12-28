@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import BinaryIO, Iterator
 import importlib.util
 import importlib
+from io import BytesIO
 
 from app.process import start_background_process
 
@@ -48,11 +49,25 @@ class VaultAdapter(abc.ABC):
             )
         return entries
 
+    def build_index(self, passphrase: str) -> dict[str, list[DirEntry]]:
+        with self.open(passphrase) as root:
+            root_entries = self.list_dir(root, "/")
+            index: dict[str, list[DirEntry]] = {"/": root_entries}
+            stack = [entry for entry in root_entries if entry.is_dir]
+            while stack:
+                entry = stack.pop()
+                children = self.list_dir(root, entry.path)
+                index[entry.path] = children
+                stack.extend(child for child in children if child.is_dir)
+            return index
+
     def open_file(self, root: Path, relative_path: str) -> BinaryIO:
         target = root / relative_path.lstrip("/")
         if not target.is_file():
             raise VaultAdapterError(f"File not found: {relative_path}")
-        return target.open("rb")
+        with open(target, "rb") as f:
+            file_data = BytesIO(f.read())
+        return file_data
 
     def write_file(self, root: Path, relative_path: str, stream: BinaryIO) -> None:
         target = root / relative_path.lstrip("/")
