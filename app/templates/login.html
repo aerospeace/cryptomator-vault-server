@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Login</h2>
+<form action="{{ url_for('login_post') }}" method="post">
+  <label for="vault_id">Vault</label>
+  <select id="vault_id" name="vault_id" required>
+    {% for vault in vaults %}
+    <option value="{{ vault.vault_id }}">{{ vault.vault_id }}</option>
+    {% endfor %}
+  </select>
+  <label for="passphrase">Passphrase</label>
+  <input id="passphrase" name="passphrase" type="password" required />
+  <button type="submit">Unlock</button>
+</form>
+{% endblock %}
