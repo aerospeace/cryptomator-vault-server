@@ -9,5 +9,12 @@ services:
       - VAULTS_CONFIG=/config/vaults.yaml
     volumes:
       - /path/to/vaults.yaml:/config/vaults.yaml:ro
-      - /path/to/vaults:/data/vaults:ro
-    user: "1000:1000"  # Replace with desired UID:GID
+      - /path/to/vaults:/data/vaults/
+    user: "33:33"  # Replace with desired UID:GID
+    # Required for mounting the decrypted vaults devices inside the container
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined    

@@ -50,7 +50,7 @@ def load_config() -> AppConfig:
         enable_login_index_cache=os.environ.get("ENABLE_LOGIN_INDEX_CACHE", "true").lower()
         == "true",
         index_cache_mode=os.environ.get("INDEX_CACHE_MODE", "recursive"),
-        adapter=os.environ.get("ADAPTER", "python"),
+        adapter=os.environ.get("ADAPTER", "cli").lower(),
         cryptomator_cli_path=os.environ.get("CRYPTOMATOR_CLI_PATH", "/usr/bin/cryptomator-cli"),
         umount_cli_path=os.environ.get("UMOUNT_CLI_PATH", "/usr/bin/umount"), # not yet a windows equivalent tested
         vault_mount_root=Path(os.environ.get("VAULT_MOUNT_ROOT", "/tmp/mounts")),
