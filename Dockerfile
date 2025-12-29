@@ -40,11 +40,14 @@ ENV ADAPTER=cli
 
 EXPOSE 8000
 
+
+
+# Root permissions needed for fusermount and user creation
+RUN chmod u+s /bin/umount
 # RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+# If override the use, needs probably to ensure the user exists in the container
+RUN mkdir -p /var/www && chown 33:33 /var/www
+USER 33:33
 
-# RUN mkdir -p /tmp && chmod 1777 /tmp
-
-# By default, run as appuser, but allow override via docker-compose or docker run
-# USER ${APP_UID:-1000}:${APP_GID:-33}
 
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app.main:create_app()"]

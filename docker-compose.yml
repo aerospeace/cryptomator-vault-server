@@ -10,7 +10,8 @@ services:
     volumes:
       - /path/to/vaults.yaml:/config/vaults.yaml:ro
       - /path/to/vaults:/data/vaults/
-    user: "33:33"  # Replace with desired UID:GID
+    # If replacing user, needs a bit of work to ensure home directory is set correctly
+    # user: "33:33"  
     # Required for mounting the decrypted vaults devices inside the container
     devices:
       - /dev/fuse:/dev/fuse
