@@ -1,0 +1,36 @@
+<div class="destination-picker" data-current-path="{{ current_path }}">
+  <div class="path">
+    {% for crumb in breadcrumbs %}
+      <button
+        type="button"
+        class="crumb"
+        hx-get="{{ url_for('hx_picker') }}?path={{ crumb.path }}"
+        hx-target="#destination-content"
+        hx-swap="innerHTML"
+      >
+        {{ crumb.name }}
+      </button>
+      {% if not loop.last %} / {% endif %}
+    {% endfor %}
+  </div>
+  {% if directories %}
+    <ul class="folder-picker">
+      {% for entry in directories %}
+        <li>
+          <button
+            type="button"
+            class="folder-link"
+            hx-get="{{ url_for('hx_picker') }}?path={{ entry.path }}"
+            hx-target="#destination-content"
+            hx-swap="innerHTML"
+          >
+            📁 {{ entry.name }}
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No subfolders here.</p>
+  {% endif %}
+  <p class="picker-hint">Navigate to the destination folder, then click “Use this folder”.</p>
+</div>
