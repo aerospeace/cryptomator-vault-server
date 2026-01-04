@@ -42,15 +42,29 @@
       </form>
     </section>
     <section>
-      <form
-        hx-post="{{ url_for('hx_move') }}?path={{ current_path }}"
-        hx-target="#file-list"
-        hx-swap="innerHTML"
+      <div
+        id="bulk-actions"
+        class="bulk-actions hidden"
+        data-current-path="{{ current_path }}"
+        data-move-url="{{ url_for('hx_move') }}?path={{ current_path }}"
+        data-copy-url="{{ url_for('hx_copy') }}?path={{ current_path }}"
+        data-picker-url="{{ url_for('hx_picker') }}"
       >
-        <input type="text" name="source_path" placeholder="File name or /path/to/file" required />
-        <input type="text" name="destination_dir" placeholder="Destination folder path" required />
-        <button type="submit">Move File</button>
-      </form>
+        <button type="button" class="bulk-action" data-bulk-action="move">Move</button>
+        <button type="button" class="bulk-action" data-bulk-action="copy">Copy</button>
+        <button
+          type="button"
+          class="bulk-action danger"
+          hx-post="{{ url_for('hx_delete') }}?path={{ current_path }}"
+          hx-target="#file-list"
+          hx-swap="innerHTML"
+          hx-include="#file-list input[name='selected_paths']:checked"
+          hx-confirm="Delete selected items?"
+        >
+          Delete
+        </button>
+      </div>
+      <input type="hidden" id="bulk-destination" name="destination_dir" value="" />
     </section>
     <section
       id="file-list"
@@ -59,4 +73,11 @@
     ></section>
   </main>
 </div>
+<dialog id="destination-dialog" class="destination-dialog">
+  <div id="destination-content"></div>
+  <div class="dialog-actions">
+    <button type="button" id="confirm-destination">Use this folder</button>
+    <button type="button" id="cancel-destination">Cancel</button>
+  </div>
+</dialog>
 {% endblock %}

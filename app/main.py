@@ -1,6 +1,5 @@
 import os
 from dataclasses import asdict
-from pathlib import Path
 from typing import Any
 
 from flask import Flask, Response, abort, flash, redirect, render_template, request, send_file, url_for
@@ -205,33 +204,123 @@ def create_app() -> Flask:
     def hx_move() -> str:
         session = request.session
         current_path = normalize_path(request.args.get("path", "/"))
-        source_input = (request.form.get("source_path") or "").strip()
         destination_input = (request.form.get("destination_dir") or "").strip()
-        if not source_input or not destination_input:
-            return render_template("partials/status.html", status="Source and destination are required", status_level="error")
+        selected_paths = request.form.getlist("selected_paths")
+        if not selected_paths or not destination_input:
+            return render_template(
+                "partials/status.html",
+                status="Select at least one item and a destination folder",
+                status_level="error",
+            )
 
-        source_path = normalize_path(
-            source_input if source_input.startswith("/") else f"{current_path.rstrip('/')}/{source_input}"
-        )
         destination_dir = normalize_path(
             destination_input if destination_input.startswith("/") else f"{current_path.rstrip('/')}/{destination_input}"
         )
+        sources = [
+            normalize_path(path if path.startswith("/") else f"{current_path.rstrip('/')}/{path}")
+            for path in selected_paths
+        ]
 
         adapter = get_adapter(session.data["vault_path"])
         try:
             with adapter.open(session.data["passphrase"]) as root:
-                adapter.move_file(root, source_path, destination_dir)
+                for source_path in sources:
+                    adapter.move_entry(root, source_path, destination_dir)
         except VaultAdapterError as exc:
             return render_template("partials/status.html", status=str(exc), status_level="error")
 
-        update_index_after_move(session, source_path, destination_dir)
+        refresh_index(session)
         entries = list_entries(session, current_path)
         return render_template(
             "partials/action_result.html",
             current_path=current_path,
             entries=entries,
-            status="File moved",
+            status="Items moved",
             status_level="success",
+        )
+
+    @app.post("/hx/copy")
+    def hx_copy() -> str:
+        session = request.session
+        current_path = normalize_path(request.args.get("path", "/"))
+        destination_input = (request.form.get("destination_dir") or "").strip()
+        selected_paths = request.form.getlist("selected_paths")
+        if not selected_paths or not destination_input:
+            return render_template(
+                "partials/status.html",
+                status="Select at least one item and a destination folder",
+                status_level="error",
+            )
+
+        destination_dir = normalize_path(
+            destination_input if destination_input.startswith("/") else f"{current_path.rstrip('/')}/{destination_input}"
+        )
+        sources = [
+            normalize_path(path if path.startswith("/") else f"{current_path.rstrip('/')}/{path}")
+            for path in selected_paths
+        ]
+
+        adapter = get_adapter(session.data["vault_path"])
+        try:
+            with adapter.open(session.data["passphrase"]) as root:
+                for source_path in sources:
+                    adapter.copy_entry(root, source_path, destination_dir)
+        except VaultAdapterError as exc:
+            return render_template("partials/status.html", status=str(exc), status_level="error")
+
+        refresh_index(session)
+        entries = list_entries(session, current_path)
+        return render_template(
+            "partials/action_result.html",
+            current_path=current_path,
+            entries=entries,
+            status="Items copied",
+            status_level="success",
+        )
+
+    @app.post("/hx/delete")
+    def hx_delete() -> str:
+        session = request.session
+        current_path = normalize_path(request.args.get("path", "/"))
+        selected_paths = request.form.getlist("selected_paths")
+        if not selected_paths:
+            return render_template(
+                "partials/status.html", status="Select at least one item to delete", status_level="error"
+            )
+
+        sources = [
+            normalize_path(path if path.startswith("/") else f"{current_path.rstrip('/')}/{path}")
+            for path in selected_paths
+        ]
+        adapter = get_adapter(session.data["vault_path"])
+        try:
+            with adapter.open(session.data["passphrase"]) as root:
+                for source_path in sources:
+                    adapter.delete_entry(root, source_path)
+        except VaultAdapterError as exc:
+            return render_template("partials/status.html", status=str(exc), status_level="error")
+
+        refresh_index(session)
+        entries = list_entries(session, current_path)
+        return render_template(
+            "partials/action_result.html",
+            current_path=current_path,
+            entries=entries,
+            status="Items deleted",
+            status_level="success",
+        )
+
+    @app.get("/hx/picker")
+    def hx_picker() -> str:
+        session = request.session
+        path = normalize_path(request.args.get("path", "/"))
+        entries = list_entries(session, path)
+        directories = [entry for entry in entries if entry.is_dir]
+        return render_template(
+            "partials/destination_picker.html",
+            current_path=path,
+            breadcrumbs=build_breadcrumbs(path),
+            directories=directories,
         )
 
     @app.get("/download")
@@ -296,27 +385,14 @@ def update_index_after_mkdir(session: Any, folder_path: str, folder_name: str) -
     index.setdefault(new_entry.path, [])
 
 
-def update_index_after_move(session: Any, source_path: str, destination_dir: str) -> None:
-    index = session.data.get("index")
-    if not index:
+def refresh_index(session: Any) -> None:
+    if not session.data.get("index"):
         return
-    source_dir = normalize_path(str(Path(source_path).parent))
-    source_name = Path(source_path).name
-    source_entries = index.get(source_dir, [])
-    moved_entry = None
-    remaining = []
-    for entry in source_entries:
-        if entry.name == source_name and not entry.is_dir:
-            moved_entry = entry
-            continue
-        remaining.append(entry)
-    index[source_dir] = remaining
-    if moved_entry:
-        new_path = f"{destination_dir.rstrip('/')}/{moved_entry.name}".replace("//", "/")
-        moved_entry = DirEntry(name=moved_entry.name, path=new_path, is_dir=False, size=moved_entry.size)
-        destination_entries = index.setdefault(destination_dir, [])
-        destination_entries.append(moved_entry)
-        destination_entries.sort(key=lambda item: (not item.is_dir, item.name.lower()))
+    adapter = get_adapter_for_session(session)
+    try:
+        session.data["index"] = adapter.build_index(session.data["passphrase"])
+    except VaultAdapterError:
+        session.data["index"] = None
 
 
 def get_adapter_for_session(session: Any) -> VaultAdapter:

@@ -1,5 +1,6 @@
 import abc
 import os
+import shutil
 import subprocess
 import tempfile
 from contextlib import contextmanager
@@ -89,6 +90,42 @@ class VaultAdapter(abc.ABC):
             raise VaultAdapterError(f"Destination is not a directory: {destination_dir}")
         destination = dest_dir / source.name
         os.replace(source, destination)
+
+    def move_entry(self, root: Path, source_path: str, destination_dir: str) -> None:
+        source = root / source_path.lstrip("/")
+        if not source.exists():
+            raise VaultAdapterError(f"Path not found: {source_path}")
+        dest_dir = root / destination_dir.lstrip("/")
+        if not dest_dir.is_dir():
+            raise VaultAdapterError(f"Destination is not a directory: {destination_dir}")
+        destination = dest_dir / source.name
+        if destination.exists():
+            raise VaultAdapterError(f"Destination already exists: {destination_dir}/{source.name}")
+        shutil.move(str(source), str(destination))
+
+    def copy_entry(self, root: Path, source_path: str, destination_dir: str) -> None:
+        source = root / source_path.lstrip("/")
+        if not source.exists():
+            raise VaultAdapterError(f"Path not found: {source_path}")
+        dest_dir = root / destination_dir.lstrip("/")
+        if not dest_dir.is_dir():
+            raise VaultAdapterError(f"Destination is not a directory: {destination_dir}")
+        destination = dest_dir / source.name
+        if destination.exists():
+            raise VaultAdapterError(f"Destination already exists: {destination_dir}/{source.name}")
+        if source.is_dir():
+            shutil.copytree(source, destination)
+        else:
+            shutil.copy2(source, destination)
+
+    def delete_entry(self, root: Path, source_path: str) -> None:
+        source = root / source_path.lstrip("/")
+        if not source.exists():
+            raise VaultAdapterError(f"Path not found: {source_path}")
+        if source.is_dir():
+            shutil.rmtree(source)
+        else:
+            source.unlink()
 
 
 class PyVaultAdapter(VaultAdapter):
