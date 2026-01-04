@@ -1,13 +1,22 @@
 <ul>
   {% for entry in entries %}
     <li class="file">
-      {% if entry.is_dir %}
-        <a href="{{ url_for('browse_path') }}?path={{ entry.path }}">📁 {{ entry.name }}</a>
-      {% else %}
-        <a href="{{ url_for('download') }}?path={{ entry.path }}">📄 {{ entry.name }}</a>
-      {% endif %}
+      <div class="file-main">
+        <input
+          type="checkbox"
+          class="file-select"
+          name="selected_paths"
+          value="{{ entry.path }}"
+          aria-label="Select {{ entry.name }}"
+        />
+        {% if entry.is_dir %}
+          <a href="{{ url_for('browse_path') }}?path={{ entry.path }}">📁 {{ entry.name }}</a>
+        {% else %}
+          <a href="{{ url_for('download') }}?path={{ entry.path }}">📄 {{ entry.name }}</a>
+        {% endif %}
+      </div>
       {% if entry.size %}
-        <span>{{ entry.size }} bytes</span>
+        <span class="file-size">{{ entry.size }} bytes</span>
       {% endif %}
     </li>
   {% endfor %}

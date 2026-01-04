@@ -18,9 +18,23 @@
       aside { border-right: 1px solid #ddd; padding-right: 16px; }
       ul { list-style: none; padding: 0; }
       li { margin-bottom: 8px; }
-      .file { display: flex; justify-content: space-between; gap: 12px; }
+      .file { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+      .file-main { display: flex; align-items: center; gap: 8px; }
+      .file-select { width: 16px; height: 16px; }
+      .file-size { color: #60656f; font-size: 0.85rem; }
       .path { font-weight: 600; }
       .status { margin-bottom: 12px; }
+      .hidden { display: none; }
+      .bulk-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+      .bulk-action { background: #fff; border: 1px solid #ccc; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+      .bulk-action.danger { border-color: #dc3545; color: #dc3545; }
+      .destination-dialog { border: none; border-radius: 8px; padding: 16px; width: min(520px, 90vw); }
+      .destination-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+      .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+      .folder-picker { margin-top: 12px; }
+      .folder-link { background: none; border: none; color: #1a73e8; cursor: pointer; padding: 0; }
+      .crumb { background: none; border: none; color: #1a73e8; cursor: pointer; padding: 0; font-weight: 600; }
+      .picker-hint { color: #60656f; font-size: 0.85rem; margin-top: 12px; }
     </style>
   </head>
   <body>
@@ -47,5 +61,89 @@
       {% endwith %}
       {% block content %}{% endblock %}
     </div>
+    <script>
+      const bulkActions = document.getElementById("bulk-actions");
+      const destinationDialog = document.getElementById("destination-dialog");
+      const destinationContent = document.getElementById("destination-content");
+      const destinationInput = document.getElementById("bulk-destination");
+      let pendingAction = null;
+
+      const getSelectedPaths = () =>
+        Array.from(document.querySelectorAll("#file-list input[name='selected_paths']:checked")).map(
+          (checkbox) => checkbox.value
+        );
+
+      const updateBulkActionsVisibility = () => {
+        if (!bulkActions) {
+          return;
+        }
+        const hasSelection = getSelectedPaths().length > 0;
+        bulkActions.classList.toggle("hidden", !hasSelection);
+      };
+
+      document.addEventListener("change", (event) => {
+        if (event.target.matches("#file-list input[name='selected_paths']")) {
+          updateBulkActionsVisibility();
+        }
+      });
+
+      document.addEventListener("htmx:afterSwap", (event) => {
+        if (event.target.id === "file-list") {
+          updateBulkActionsVisibility();
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        const actionButton = event.target.closest("[data-bulk-action]");
+        if (!actionButton || !bulkActions || !destinationDialog) {
+          return;
+        }
+        pendingAction = actionButton.dataset.bulkAction;
+        if (destinationInput) {
+          destinationInput.value = "";
+        }
+        destinationDialog.showModal();
+        const pickerUrl = bulkActions.dataset.pickerUrl;
+        const currentPath = bulkActions.dataset.currentPath;
+        if (pickerUrl && destinationContent) {
+          htmx.ajax("GET", `${pickerUrl}?path=${encodeURIComponent(currentPath)}`, {
+            target: destinationContent,
+            swap: "innerHTML",
+          });
+        }
+      });
+
+      document.getElementById("cancel-destination")?.addEventListener("click", () => {
+        destinationDialog?.close();
+      });
+
+      document.getElementById("confirm-destination")?.addEventListener("click", () => {
+        if (!bulkActions || !destinationDialog) {
+          return;
+        }
+        const picker = destinationContent?.querySelector(".destination-picker");
+        const destination = picker?.dataset.currentPath;
+        const selectedPaths = getSelectedPaths();
+        if (!destination || selectedPaths.length === 0) {
+          return;
+        }
+        if (destinationInput) {
+          destinationInput.value = destination;
+        }
+        const actionUrl = pendingAction === "copy" ? bulkActions.dataset.copyUrl : bulkActions.dataset.moveUrl;
+        if (!actionUrl) {
+          return;
+        }
+        htmx.ajax("POST", actionUrl, {
+          target: "#file-list",
+          swap: "innerHTML",
+          values: {
+            destination_dir: destination,
+            selected_paths: selectedPaths,
+          },
+        });
+        destinationDialog.close();
+      });
+    </script>
   </body>
 </html>
