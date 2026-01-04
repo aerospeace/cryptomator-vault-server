@@ -1,4 +1,5 @@
 from pathlib import PurePosixPath
+
 from app.adapters import DirEntry
 
 
@@ -29,3 +30,16 @@ def flatten_tree(tree: dict) -> list[dict]:
     for child in tree.get("children", []):
         items.extend(flatten_tree(child))
     return items
+
+
+def build_breadcrumbs(path: str) -> list[dict]:
+    normalized = normalize_path(path)
+    if normalized == "/":
+        return [{"name": "/", "path": "/"}]
+    parts = PurePosixPath(normalized).parts
+    breadcrumbs = [{"name": "/", "path": "/"}]
+    current = PurePosixPath("/")
+    for part in parts[1:]:
+        current = current / part
+        breadcrumbs.append({"name": part, "path": str(current)})
+    return breadcrumbs

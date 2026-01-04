@@ -9,7 +9,7 @@ from app.adapters import CLIVaultAdapter, DirEntry, PyVaultAdapter, VaultAdapter
 from app.config import load_config
 from app.rate_limit import RateLimiter
 from app.session import SessionStore
-from app.utils import build_tree, flatten_tree, normalize_path
+from app.utils import build_breadcrumbs, build_tree, flatten_tree, normalize_path
 
 
 def create_app() -> Flask:
@@ -45,6 +45,14 @@ def create_app() -> Flask:
         if not ok:
             return redirect(url_for("login"))
         request.session = session
+
+    @app.context_processor
+    def inject_vault_name() -> dict[str, str | None]:
+        session = getattr(request, "session", None)
+        vault_name = None
+        if session:
+            vault_name = session.data.get("vault_id")
+        return {"vault_name": vault_name}
 
     @app.get("/login")
     def login() -> str:
@@ -121,6 +129,7 @@ def create_app() -> Flask:
         return render_template(
             "browser.html",
             current_path=path,
+            breadcrumbs=build_breadcrumbs(path),
             entries=entries,
             tree=tree,
         )
@@ -138,11 +147,7 @@ def create_app() -> Flask:
         path = normalize_path(request.args.get("path", "/"))
         upload = request.files.get("file")
         if not upload:
-            return render_template(
-                "partials/status.html",
-                status="No file uploaded",
-                status_level="error",
-            )
+            return render_template("partials/status.html", status="No file uploaded", status_level="error")
 
         adapter = get_adapter(session.data["vault_path"])
         try:
@@ -155,10 +160,77 @@ def create_app() -> Flask:
         update_index_after_upload(session, path, upload.filename)
         entries = list_entries(session, path)
         return render_template(
-            "partials/upload_result.html",
+            "partials/action_result.html",
             current_path=path,
             entries=entries,
             status="Upload complete",
+            status_level="success",
+        )
+
+    @app.post("/hx/mkdir")
+    def hx_mkdir() -> str:
+        session = request.session
+        path = normalize_path(request.args.get("path", "/"))
+        folder_name = (request.form.get("folder_name") or "").strip()
+        if not folder_name:
+            return render_template("partials/status.html", status="Folder name is required", status_level="error")
+        if "/" in folder_name or folder_name in {".", ".."}:
+            return render_template(
+                "partials/status.html",
+                status="Folder name must be a single directory name",
+                status_level="error",
+            )
+
+        adapter = get_adapter(session.data["vault_path"])
+        new_folder_path = f"{path.rstrip('/')}/{folder_name}".replace("//", "/")
+        try:
+            with adapter.open(session.data["passphrase"]) as root:
+                adapter.make_dir(root, new_folder_path)
+        except VaultAdapterError as exc:
+            return render_template("partials/status.html", status=str(exc), status_level="error")
+        except FileExistsError:
+            return render_template("partials/status.html", status="Folder already exists", status_level="error")
+
+        update_index_after_mkdir(session, path, folder_name)
+        entries = list_entries(session, path)
+        return render_template(
+            "partials/action_result.html",
+            current_path=path,
+            entries=entries,
+            status="Folder created",
+            status_level="success",
+        )
+
+    @app.post("/hx/move")
+    def hx_move() -> str:
+        session = request.session
+        current_path = normalize_path(request.args.get("path", "/"))
+        source_input = (request.form.get("source_path") or "").strip()
+        destination_input = (request.form.get("destination_dir") or "").strip()
+        if not source_input or not destination_input:
+            return render_template("partials/status.html", status="Source and destination are required", status_level="error")
+
+        source_path = normalize_path(
+            source_input if source_input.startswith("/") else f"{current_path.rstrip('/')}/{source_input}"
+        )
+        destination_dir = normalize_path(
+            destination_input if destination_input.startswith("/") else f"{current_path.rstrip('/')}/{destination_input}"
+        )
+
+        adapter = get_adapter(session.data["vault_path"])
+        try:
+            with adapter.open(session.data["passphrase"]) as root:
+                adapter.move_file(root, source_path, destination_dir)
+        except VaultAdapterError as exc:
+            return render_template("partials/status.html", status=str(exc), status_level="error")
+
+        update_index_after_move(session, source_path, destination_dir)
+        entries = list_entries(session, current_path)
+        return render_template(
+            "partials/action_result.html",
+            current_path=current_path,
+            entries=entries,
+            status="File moved",
             status_level="success",
         )
 
@@ -211,6 +283,40 @@ def update_index_after_upload(session: Any, folder_path: str, filename: str) -> 
     entries = index.setdefault(folder_path, [])
     entries.append(new_entry)
     entries.sort(key=lambda item: (not item.is_dir, item.name.lower()))
+
+
+def update_index_after_mkdir(session: Any, folder_path: str, folder_name: str) -> None:
+    index = session.data.get("index")
+    if not index:
+        return
+    new_entry = DirEntry(name=folder_name, path=f"{folder_path.rstrip('/')}/{folder_name}", is_dir=True, size=None)
+    entries = index.setdefault(folder_path, [])
+    entries.append(new_entry)
+    entries.sort(key=lambda item: (not item.is_dir, item.name.lower()))
+    index.setdefault(new_entry.path, [])
+
+
+def update_index_after_move(session: Any, source_path: str, destination_dir: str) -> None:
+    index = session.data.get("index")
+    if not index:
+        return
+    source_dir = normalize_path(str(Path(source_path).parent))
+    source_name = Path(source_path).name
+    source_entries = index.get(source_dir, [])
+    moved_entry = None
+    remaining = []
+    for entry in source_entries:
+        if entry.name == source_name and not entry.is_dir:
+            moved_entry = entry
+            continue
+        remaining.append(entry)
+    index[source_dir] = remaining
+    if moved_entry:
+        new_path = f"{destination_dir.rstrip('/')}/{moved_entry.name}".replace("//", "/")
+        moved_entry = DirEntry(name=moved_entry.name, path=new_path, is_dir=False, size=moved_entry.size)
+        destination_entries = index.setdefault(destination_dir, [])
+        destination_entries.append(moved_entry)
+        destination_entries.sort(key=lambda item: (not item.is_dir, item.name.lower()))
 
 
 def get_adapter_for_session(session: Any) -> VaultAdapter:

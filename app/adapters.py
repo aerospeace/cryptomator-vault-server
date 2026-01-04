@@ -76,6 +76,20 @@ class VaultAdapter(abc.ABC):
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                 handle.write(chunk)
 
+    def make_dir(self, root: Path, relative_path: str) -> None:
+        target = root / relative_path.lstrip("/")
+        target.mkdir(parents=True, exist_ok=False)
+
+    def move_file(self, root: Path, source_path: str, destination_dir: str) -> None:
+        source = root / source_path.lstrip("/")
+        if not source.is_file():
+            raise VaultAdapterError(f"File not found: {source_path}")
+        dest_dir = root / destination_dir.lstrip("/")
+        if not dest_dir.is_dir():
+            raise VaultAdapterError(f"Destination is not a directory: {destination_dir}")
+        destination = dest_dir / source.name
+        os.replace(source, destination)
+
 
 class PyVaultAdapter(VaultAdapter):
     def __init__(self, vault_path: Path) -> None:

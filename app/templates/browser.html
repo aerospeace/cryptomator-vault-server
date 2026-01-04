@@ -15,18 +15,42 @@
     {% endif %}
   </aside>
   <main>
-    <div class="path">{{ current_path }}</div>
+    <div class="path">
+      {% for crumb in breadcrumbs %}
+        <a href="{{ url_for('browse_path') }}?path={{ crumb.path }}">{{ crumb.name }}</a>{% if not loop.last %} / {% endif %}
+      {% endfor %}
+    </div>
     <section>
       <form
         hx-post="{{ url_for('hx_upload') }}?path={{ current_path }}"
-        hx-target="#upload-result"
+        hx-target="#file-list"
         hx-swap="innerHTML"
         enctype="multipart/form-data"
       >
         <input type="file" name="file" required />
         <button type="submit">Upload</button>
       </form>
-      <div id="upload-result"></div>
+    </section>
+    <section>
+      <form
+        hx-post="{{ url_for('hx_mkdir') }}?path={{ current_path }}"
+        hx-target="#file-list"
+        hx-swap="innerHTML"
+      >
+        <input type="text" name="folder_name" placeholder="New folder name" required />
+        <button type="submit">Create Folder</button>
+      </form>
+    </section>
+    <section>
+      <form
+        hx-post="{{ url_for('hx_move') }}?path={{ current_path }}"
+        hx-target="#file-list"
+        hx-swap="innerHTML"
+      >
+        <input type="text" name="source_path" placeholder="File name or /path/to/file" required />
+        <input type="text" name="destination_dir" placeholder="Destination folder path" required />
+        <button type="submit">Move File</button>
+      </form>
     </section>
     <section
       id="file-list"
