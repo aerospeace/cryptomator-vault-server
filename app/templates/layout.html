@@ -7,7 +7,9 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
       body { font-family: sans-serif; margin: 0; padding: 0; }
-      header { background: #222; color: #fff; padding: 12px 24px; display: flex; justify-content: space-between; }
+      header { background: #222; color: #fff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+      .header-title { display: flex; flex-direction: column; gap: 4px; }
+      .vault-name { font-size: 0.9rem; color: #cfd2d6; }
       .container { padding: 24px; }
       .flash { padding: 12px; margin-bottom: 16px; border-radius: 4px; }
       .flash.error { background: #f8d7da; color: #721c24; }
@@ -23,7 +25,12 @@
   </head>
   <body>
     <header>
-      <div>Cryptomator Vault Gateway</div>
+      <div class="header-title">
+        <div>Cryptomator Vault Gateway</div>
+        {% if vault_name %}
+          <div class="vault-name">Vault: {{ vault_name }}</div>
+        {% endif %}
+      </div>
       {% if request.path != '/login' %}
       <form action="{{ url_for('logout') }}" method="post">
         <button type="submit">Logout</button>
